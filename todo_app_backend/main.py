@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI, status
+from fastapi import FastAPI, status, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -29,7 +29,21 @@ class TaskUpdateSchema(BaseModel):
     completed: bool | None = None
 
 
+class CategoriesSchema(BaseModel):
+    id: str
+    name: str
+
+
+class CategoriesCreateSchema(BaseModel):
+    name: str
+
+
+class CategoriesUpdateSchema(BaseModel):
+    name: str | None = None
+
+
 tasks: list[TaskSchema] = []
+categories: list[CategoriesSchema] = []
 
 
 @app.get("/tasks", status_code=status.HTTP_200_OK)
@@ -38,7 +52,7 @@ def read_tasks() -> list[TaskSchema]:
 
 
 @app.post("/tasks", status_code=status.HTTP_201_CREATED)
-def create_tasks(payload: TaskCreateSchema) -> TaskSchema:
+def create_task(payload: TaskCreateSchema) -> TaskSchema:
     new_task = TaskSchema(id=str(uuid4()), title=payload.title, completed=False)
 
     tasks.append(new_task)
@@ -46,7 +60,7 @@ def create_tasks(payload: TaskCreateSchema) -> TaskSchema:
 
 
 @app.patch("/tasks/{task_id}", status_code=status.HTTP_200_OK)
-def update_task(task_id: str, payload: TaskUpdateSchema):
+def update_task(task_id: str, payload: TaskUpdateSchema) -> TaskSchema:
     for task in tasks:
         if task.id == task_id:
             if payload.title:
@@ -61,6 +75,39 @@ def delete_task(task_id: str):
     for task in tasks:
         if task.id == task_id:
             tasks.remove(task)
+
+
+@app.get("/categories", status_code=status.HTTP_200_OK)
+def read_categories() -> list[CategoriesSchema]:
+    return categories
+
+
+@app.post("/categories", status_code=status.HTTP_201_CREATED)
+def create_categories(payload: CategoriesCreateSchema) -> CategoriesSchema:
+    new_category = CategoriesSchema(id=str(uuid4()), name=payload.name)
+    categories.append(new_category)
+    return new_category
+
+
+@app.patch("/categories/{category_id}", status_code=status.HTTP_200_OK)
+def update_category(category_id: str, payload: CategoriesUpdateSchema) -> CategoriesSchema:
+    for category in categories:
+        if category.id == category_id:
+            if payload.name:
+                category.name = payload.name
+
+            return category
+    raise HTTPException(status_code=404, detail="Category not found")
+
+
+@app.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_category(category_id):
+    for category in categories:
+        if category.id == category_id:
+            categories.remove(category)
+            break
+    else:
+        raise HTTPException(status_code=404, detail="Category not found")
 
 
 if __name__ == "__main__":
